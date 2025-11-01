@@ -1,4 +1,5 @@
 # Default libraries
+import os
 import shutil
 from pathlib import Path
 
@@ -10,24 +11,24 @@ from PIL import Image, ImageSequence, UnidentifiedImageError
 from helpers.image_manipulation import tilt_img
 
 
-OTHER_EXTS = ('.jpg', '.png', '.jpeg', '.ico', '.webp')
-HEI_EXTS = ('.heic', '.heif')
-RAWPY_EXTS = ('.nef',)
+OTHER_EXTS = (".jpg", ".png", ".jpeg", ".ico", ".webp")
+HEI_EXTS = (".heic", ".heif")
+RAWPY_EXTS = (".nef",)
 IMG_EXTS = OTHER_EXTS + HEI_EXTS + RAWPY_EXTS
 
-IGNORE_EXTS = ('.ds_store')
+IGNORE_EXTS = ".ds_store"
 
 INVALID_COUNT = 0
 
 
 # Glob all filenames in a given path with a given pattern, but exclude the patterns in the exclusion list
 def glob_all_except(path, base_pattern="*", excluded_patterns=[]):
-	matches = set(path.glob(base_pattern))
+    matches = set(path.glob(base_pattern))
 
-	for pattern in excluded_patterns:
-		matches = matches - set(path.glob(pattern))
+    for pattern in excluded_patterns:
+        matches = matches - set(path.glob(pattern))
 
-	return list(matches)
+    return list(matches)
 
 
 def extension_match(image_path, extension_list):
@@ -36,26 +37,26 @@ def extension_match(image_path, extension_list):
 
 # Flush the output directory
 def flush_output(path_out: Path, exts: tuple[str]) -> None:
-	for deletion_candidate in path_out.iterdir():
-		if extension_match(deletion_candidate, exts):
-			deletion_candidate.unlink()
+    for deletion_candidate in path_out.iterdir():
+        if extension_match(deletion_candidate, exts):
+            deletion_candidate.unlink()
 
 
 # Move an invalid picture out
 def invalidate_path(image_path, path_invalid):
-	global INVALID_COUNT
-	shutil.move(image_path, path_invalid)
-	INVALID_COUNT += 1
+    global INVALID_COUNT
+    shutil.move(image_path, path_invalid)
+    INVALID_COUNT += 1
 
 
 # Create a directory if it is missing
 def create_dir_if_missing(dir_path):
-	try:
-		dir_path.mkdir()
-	except FileExistsError:
-		return True
+    try:
+        dir_path.mkdir()
+    except FileExistsError:
+        return True
 
-	return False
+    return False
 
 
 def open_rawpy_image(image_path):
@@ -73,11 +74,11 @@ def open_hei_image(image_path):
 
 def universal_load_image(image_path):
     image = None
-    flag = 'img'
+    flag = "img"
     is_hei = False
 
     if extension_match(image_path, IGNORE_EXTS):
-        flag = 'ignore'
+        flag = "ignore"
     elif extension_match(image_path, RAWPY_EXTS):
         image = open_rawpy_image(image_path)
     elif extension_match(image_path, HEI_EXTS):
@@ -86,14 +87,14 @@ def universal_load_image(image_path):
     elif extension_match(image_path, OTHER_EXTS):
         image = Image.open(image_path)
     else:
-        flag = 'invalid'
+        flag = "invalid"
 
     return image, flag, is_hei
 
 
 def attempt_open_image_attempt_tilt(image):
     # TODO : Implement no-tilt option in CLI arguments
-    # For non-HEI file types, try to re-orient the picture if it is allowed and orientation data is available 
+    # For non-HEI file types, try to re-orient the picture if it is allowed and orientation data is available
     try:
         # TODO : Potentiellement getexif existe partout alors que _getexif pas
         image._getexif()
@@ -101,19 +102,26 @@ def attempt_open_image_attempt_tilt(image):
     except AttributeError:
         # TODO : Setting for what to do when image can't be rotated
         pass
-     
+
     return image
 
 
 def attempt_open_image(image_path, path_invalid, attempt_rotate):
     image, flag, is_hei = universal_load_image(image_path)
 
-    if flag == 'ignore':
+    if flag == "ignore":
         return None
-    elif flag == 'invalid':
-        invalidate_path(image_path, path_inv)
+    elif flag == "invalid":
+        invalidate_path(image_path, path_invalid)
 
     if not is_hei and attempt_rotate:
         image = attempt_open_image_attempt_tilt(image)
 
     return image
+
+
+def scandir(dirname):
+    subfolders = [f.path for f in os.scandir(dirname) if f.is_dir()]
+    for dirname in list(subfolders):
+        subfolders.extend(scandir(dirname))
+    return subfolders
